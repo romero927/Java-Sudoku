@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Sudoku Game</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background-color: #f0f0f0;
+        }
+        h1 {
+            color: #333;
+        }
+        .sudoku-board {
+            border: 2px solid #333;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+        .sudoku-board td {
+            width: 40px;
+            height: 40px;
+            text-align: center;
+            border: 1px solid #bbb;
+            padding: 0;
+        }
+        .sudoku-board input {
+            width: 100%;
+            height: 100%;
+            border: none;
+            text-align: center;
+            font-size: 18px;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        .sudoku-board input:focus {
+            background-color: #e0e0ff;
+            outline: none;
+        }
+        .sudoku-board input:read-only {
+            background-color: #f0f0f0;
+            font-weight: bold;
+        }
+        .sudoku-board tr:nth-child(3n) td {
+            border-bottom: 2px solid #333;
+        }
+        .sudoku-board td:nth-child(3n) {
+            border-right: 2px solid #333;
+        }
+        button {
+            font-size: 16px;
+            padding: 10px 20px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+            border-radius: 5px;
+            margin: 10px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        #message {
+            margin-top: 20px;
+            font-size: 18px;
+            font-weight: bold;
+        }
+        #timer {
+            font-size: 20px;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+        .incorrect {
+            background-color: yellow !important;
+        }
+    </style>
+</head>
+<body>
+    <h1>Sudoku Game</h1>
+    <div id="timer">00:00:00</div>
+    <table class="sudoku-board">
+        <tbody>
+            <tr th:each="row, rowStat : ${board}">
+                <td th:each="cell, cellStat : ${row}">
+                    <input type="number" min="1" max="9" th:value="${cell != 0 ? cell : ''}"
+                           th:readonly="${cell != 0}"
+                           th:data-row="${rowStat.index}"
+                           th:data-col="${cellStat.index}"
+                           onchange="makeMove(this)">
+                </td>
+            </tr>
+        </tbody>
+    </table>
+    <button onclick="newGame()">New Game</button>
+    <p id="message"></p>
+
+    <script th:inline="javascript">
+        let timer;
+        let seconds = 0;
+        let startTime = new Date().getTime();
+
+        function updateTimer() {
+            const currentTime = new Date().getTime();
+            const elapsedTime = Math.floor((currentTime - startTime) / 1000);
+            const hours = Math.floor(elapsedTime / 3600);
+            const minutes = Math.floor((elapsedTime % 3600) / 60);
+            const secs = elapsedTime % 60;
+            document.getElementById('timer').textContent = 
+                `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+        }
+
+        function startTimer() {
+            startTime = new Date().getTime();
+            timer = setInterval(updateTimer, 1000);
+        }
+
+        function stopTimer() {
+            clearInterval(timer);
+        }
+
+        function resetTimer() {
+            stopTimer();
+            seconds = 0;
+            document.getElementById('timer').textContent = '00:00:00';
+            startTimer();
+        }
+
+        function makeMove(input) {
+            var row = input.getAttribute('data-row');
+            var col = input.getAttribute('data-col');
+            var value = input.value;
+
+            fetch('/move', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: 'row=' + row + '&col=' + col + '&value=' + value
+            })
+            .then(response => response.text())
+            .then(data => {
+                document.getElementById('message').innerText = data;
+                if (data.startsWith('Invalid')) {
+                    input.classList.add('incorrect');
+                    setTimeout(() => {
+                        input.classList.remove('incorrect');
+                        input.value = '';
+                    }, 1000);
+                } else if (data.startsWith('Congratulations')) {
+                    stopTimer();
+                }
+            });
+        }
+
+        function newGame() {
+            resetTimer();
+            window.location.href = '/new-game';
+        }
+
+        // Start the timer when the page loads
+        startTimer();
+    </script>
+</body>
+</html>
